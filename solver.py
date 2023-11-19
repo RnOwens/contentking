@@ -100,9 +100,45 @@ def find_double_pairs(board):
 
 
 def find_naked_pairs(board):
-    # Implementation of Naked Pairs Technique
-    # ...
-    return False  # Update to True when a change is made
+    n = 9
+    found = False
+
+    # Check for naked pairs in rows
+    for row in range(n):
+        for col1 in range(n):
+            if board[row][col1] == 0:
+                candidates1 = {num for num in range(1, n + 1) if is_possible(board, row, col1, num)}
+                if len(candidates1) == 2:
+                    for col2 in range(col1 + 1, n):
+                        if board[row][col2] == 0:
+                            candidates2 = {num for num in range(1, n + 1) if is_possible(board, row, col2, num)}
+                            if candidates1 == candidates2:
+                                for col in range(n):
+                                    if col != col1 and col != col2 and board[row][col] == 0:
+                                        for num in candidates1:
+                                            if is_possible(board, row, col, num):
+                                                board[row][col] = -num
+                                                found = True
+
+    # Check for naked pairs in columns
+    for col in range(n):
+        for row1 in range(n):
+            if board[row1][col] == 0:
+                candidates1 = {num for num in range(1, n + 1) if is_possible(board, row1, col, num)}
+                if len(candidates1) == 2:
+                    for row2 in range(row1 + 1, n):
+                        if board[row2][col] == 0:
+                            candidates2 = {num for num in range(1, n + 1) if is_possible(board, row2, col, num)}
+                            if candidates1 == candidates2:
+                                for row in range(n):
+                                    if row != row1 and row != row2 and board[row][col] == 0:
+                                        for num in candidates1:
+                                            if is_possible(board, row, col, num):
+                                                board[row][col] = -num
+                                                found = True
+
+    return found
+
 
 
 def find_single_candidate(board):
@@ -227,22 +263,32 @@ def find_hidden_pairs(board):
 
     return found
 
-def find_hidden_triples_in_group(group):
+def find_hidden_triples_in_group(group, base_row, base_col, is_row_group):
     n = 9
     possibilities = [set() for _ in range(n)]
-    for i, cell in enumerate(group):
-        if cell == 0:
-            possibilities[i] = {num for num in range(1, n + 1) if is_possible_in_group(group, num, i)}
 
+    # Determine row and column for each cell in the group
+    for i in range(n):
+        row, col = (base_row, i) if is_row_group else (i, base_col)
+
+        if group[i] == 0:
+            possibilities[i] = {num for num in range(1, n + 1) if is_possible(board, row, col, num)}
+
+    # Find triples in the group
     triples = []
     for num in range(1, n + 1):
         cells = [i for i in range(n) if num in possibilities[i]]
         if len(cells) == 3:
             nums = set.intersection(*[possibilities[cell] for cell in cells])
-            if len(nums) <= 3:
+            if len(nums) == 3:
                 triples.append((nums, cells))
 
     return triples
+
+
+
+
+
 
 def find_naked_triple(board):
     n = 9
@@ -317,46 +363,84 @@ def find_hidden_triple(board):
     n = 9
     found = False
 
-    for unit in range(n):
-        # Check each row and column
-        for is_row in [True, False]:
-            if is_row:
-                group = [board[unit, j] for j in range(n)]  # Row
-            else:
-                group = [board[j, unit] for j in range(n)]  # Column
+    # Check for hidden triples in rows
+    for row in range(n):
+        row_group = [board[row, col] for col in range(n)]
+        if find_hidden_triples_in_group(row_group, row, 0, True):
+            found = True
 
-            triples = find_hidden_triples_in_group(group)
-            for triple in triples:
-                nums, cells = triple
-                for num in nums:
-                    for i in range(n):
-                        if i in cells and group[i] == 0:
-                            if is_possible(board, unit if is_row else i, i if is_row else unit, num):
-                                board[unit if is_row else i, i if is_row else unit] = -num  # Indicate elimination
-                                found = True
+    # Check for hidden triples in columns
+    for col in range(n):
+        col_group = [board[row, col] for row in range(n)]
+        if find_hidden_triples_in_group(col_group, 0, col, False):
+            found = True
 
-        # Check each block
-        block_row = (unit // 3) * 3
-        block_col = (unit % 3) * 3
-        block = [board[block_row + r][block_col + c] for r in range(3) for c in range(3)]
-
-        triples = find_hidden_triples_in_group(block)
-        for triple in triples:
-            nums, cells = triple
-            for num in nums:
-                for idx in range(9):
-                    row, col = (block_row + idx // 3, block_col + idx % 3)
-                    if idx in cells and block[idx] == 0:
-                        if is_possible(board, row, col, num):
-                            board[row, col] = -num  # Indicate elimination
-                            found = True
+    # Check for hidden triples in blocks
+    for block_row in range(0, n, 3):
+        for block_col in range(0, n, 3):
+            block_group = [board[row, col] for row in range(block_row, block_row + 3)
+                           for col in range(block_col, block_col + 3)]
+            if find_hidden_triples_in_group(block_group, block_row, block_col, True):
+                found = True
 
     return found
 
-def find_hidden_triples_in_group(group):
+
+
+
+def find_hidden_triples_in_blocks(board, block_row, block_col):
+    n = 9
+    found = False
+    triples = []
+
+    # Convert block position to cell positions
+    cell_positions = [(row, col) for row in range(block_row, block_row + 3) 
+                      for col in range(block_col, block_col + 3)]
+
+    # Find potential triples in the block
+    for i in range(len(cell_positions)):
+        row_i, col_i = cell_positions[i]
+        if board[row_i][col_i] == 0:
+            candidates_i = {num for num in range(1, n + 1) if is_possible(board, row_i, col_i, num)}
+            if 2 <= len(candidates_i) <= 3:
+                for j in range(i + 1, len(cell_positions)):
+                    row_j, col_j = cell_positions[j]
+                    if board[row_j][col_j] == 0:
+                        candidates_j = {num for num in range(1, n + 1) if is_possible(board, row_j, col_j, num)}
+                        for k in range(j + 1, len(cell_positions)):
+                            row_k, col_k = cell_positions[k]
+                            if board[row_k][col_k] == 0:
+                                candidates_k = {num for num in range(1, n + 1) if is_possible(board, row_k, col_k, num)}
+                                combined_candidates = candidates_i | candidates_j | candidates_k
+                                if len(combined_candidates) == 3:
+                                    triples.append((combined_candidates, [(row_i, col_i), (row_j, col_j), (row_k, col_k)]))
+
+    # Process found triples
+    for nums, positions in triples:
+        for pos in positions:
+            row, col = pos
+            for num in range(1, n + 1):
+                if num not in nums and is_possible(board, row, col, num):
+                    board[row][col] = -num  # Indicate elimination
+                    found = True
+
+    return found
+
+
+def find_hidden_triples_in_group(group, base_row, base_col, is_row_group):
     n = 9
     possibilities = [set() for _ in range(n)]
+
+    # Determine row and column for each cell in the group
     for i in range(n):
+        row, col = (base_row, i) if is_row_group else (i, base_col)
+
+        if group[i] == 0:
+            possibilities[i] = {num for num in range(1, n + 1) if is_possible(board, row, col, num)}
+
+    # (rest of the function logic remains the same)
+    # ...
+
         if group[i] == 0:
             possibilities[i] = {num for num in range(1, n + 1) if is_possible(board, row, col, num)}
 
